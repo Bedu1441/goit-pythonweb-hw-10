@@ -1,3 +1,4 @@
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -15,11 +16,18 @@ from app.routes_users import router as users_router
 
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+
+logger = logging.getLogger(__name__)
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Contacts API", version="1.0")
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -34,10 +42,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# rate limit for /users/me
 for route in users_router.routes:
     if route.path == "/users/me":
-        route.endpoint = limiter.limit("5/minute")(route.endpoint)
+        original_endpoint = route.endpoint
+        route.endpoint = limiter.limit("5/minute")(original_endpoint)
 
 app.include_router(auth_router)
 app.include_router(contacts_router)
@@ -46,4 +54,5 @@ app.include_router(users_router)
 
 @app.get("/")
 def root():
+    logger.info("Root endpoint accessed")
     return {"message": "Contacts API is running"}

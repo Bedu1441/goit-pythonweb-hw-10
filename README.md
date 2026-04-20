@@ -221,3 +221,15 @@ This project demonstrates:
 - Database integration with PostgreSQL
 - Containerized deployment using Docker
 - Handling of real-world backend concerns (security, rate limiting, verification, environment configuration)
+
+## Verification and Access Control
+
+Only confirmed users can access protected user and contact endpoints.
+
+## Rate Limiting
+
+The `/users/me` endpoint is rate-limited.
+
+## Avatar Upload
+
+Avatar upload validates file type and requires Cloudinary environment variables.

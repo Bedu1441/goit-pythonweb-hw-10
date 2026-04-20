@@ -17,7 +17,11 @@ from app.schemas import Token, UserCreate, UserLogin, UserResponse
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/signup",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def signup(
     user: UserCreate,
     background_tasks: BackgroundTasks,
@@ -45,7 +49,7 @@ def signup(
     return new_user
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
     user = get_user_by_email(db, user_data.email)
 
@@ -65,7 +69,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.get("/confirmed_email/{token}")
+@router.get("/confirmed_email/{token}", status_code=status.HTTP_200_OK)
 def confirmed_email(token: str, db: Session = Depends(get_db)):
     try:
         email = decode_email_token(token)
@@ -78,8 +82,8 @@ def confirmed_email(token: str, db: Session = Depends(get_db)):
     user = get_user_by_email(db, email)
     if user is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Verification error",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
         )
 
     if user.confirmed:
@@ -89,13 +93,14 @@ def confirmed_email(token: str, db: Session = Depends(get_db)):
     return {"message": "Email confirmed"}
 
 
-@router.post("/request_email")
+@router.post("/request_email", status_code=status.HTTP_200_OK)
 def request_email(
-    background_tasks: BackgroundTasks,
     email: str,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     user = get_user_by_email(db, email)
+
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

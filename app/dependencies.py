@@ -30,3 +30,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
 
     return user
+
+
+def get_current_confirmed_user(current_user=Depends(get_current_user)):
+    if not current_user.confirmed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email is not confirmed",
+        )
+    return current_user

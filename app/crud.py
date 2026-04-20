@@ -53,8 +53,14 @@ def create_contact(db: Session, contact: ContactCreate, owner_id: int):
     return db_contact
 
 
-def get_contacts(db: Session, owner_id: int):
-    return db.query(Contact).filter(Contact.owner_id == owner_id).all()
+def get_contacts(db: Session, owner_id: int, skip: int = 0, limit: int = 10):
+    return (
+        db.query(Contact)
+        .filter(Contact.owner_id == owner_id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def get_contact(db: Session, contact_id: int, owner_id: int):
@@ -68,7 +74,7 @@ def get_contact(db: Session, contact_id: int, owner_id: int):
 def update_contact(db: Session, contact_id: int, contact: ContactUpdate, owner_id: int):
     db_contact = get_contact(db, contact_id, owner_id)
     if db_contact:
-        for key, value in contact.model_dump().items():
+        for key, value in contact.model_dump(exclude_unset=True).items():
             setattr(db_contact, key, value)
         db.commit()
         db.refresh(db_contact)

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from dotenv import load_dotenv
-from jose import JWTError, jwt
+from jose import jwt
 from passlib.context import CryptContext
 
 
@@ -11,10 +11,10 @@ load_dotenv()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey123")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
-EMAIL_TOKEN_SECRET = os.getenv("EMAIL_TOKEN_SECRET", "email-secret")
+EMAIL_TOKEN_SECRET = os.getenv("EMAIL_TOKEN_SECRET", "email-secret-key")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

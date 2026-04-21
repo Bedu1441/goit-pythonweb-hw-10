@@ -1,20 +1,14 @@
-import logging
-import os
+"""
+Application entry point.
+"""
 
-from dotenv import load_dotenv
+import logging
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
 from app.database import Base, engine
 from app.routes_auth import router as auth_router
 from app.routes_contacts import router as contacts_router
 from app.routes_users import router as users_router
-
-
-load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,34 +19,30 @@ logger = logging.getLogger(__name__)
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Contacts API", version="1.0")
-
-limiter = Limiter(key_func=get_remote_address, default_limits=[])
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-cors_origins = os.getenv("CORS_ORIGINS", "")
-origins = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins or ["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = FastAPI(
+    title="Contacts API Homework 12",
+    description=(
+        "REST API for user authentication, contact management, password reset, "
+        "role-based access control, Redis-based caching, and refresh token support."
+    ),
+    version="1.1.0",
 )
 
-for route in users_router.routes:
-    if route.path == "/users/me":
-        original_endpoint = route.endpoint
-        route.endpoint = limiter.limit("5/minute")(original_endpoint)
+
+@app.get(
+    "/",
+    summary="Health check",
+    description="Simple endpoint to verify that the API is running.",
+    tags=["system"],
+)
+def root():
+    """
+    Health-check root endpoint.
+    """
+    logger.info("Health check endpoint called")
+    return {"message": "Contacts API is running"}
+
 
 app.include_router(auth_router)
-app.include_router(contacts_router)
 app.include_router(users_router)
-
-
-@app.get("/")
-def root():
-    logger.info("Root endpoint accessed")
-    return {"message": "Contacts API is running"}
+app.include_router(contacts_router)

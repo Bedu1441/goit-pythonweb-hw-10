@@ -1,235 +1,221 @@
-# GoIT Python Web HW-10
+# goit-pythonweb-hw-12
 
-REST API for managing contacts with authentication, authorization, email verification, rate limiting, CORS support, and avatar upload functionality.
+REST API application built with FastAPI for managing contacts.
 
----
+## Project overview
+
+This project is the final homework for the Python Web course.  
+It extends the previous REST API application with documentation, testing, Redis caching, password reset, role-based access control, refresh token support, and Docker Compose orchestration.
 
 ## Features
 
-- User registration and authentication
-- JWT-based authorization (access tokens)
-- Password hashing (bcrypt)
-- Email verification with token confirmation
-- Protected endpoints (only authenticated users)
-- Each user has access only to their own contacts
-- CRUD operations for contacts
-- Search contacts by first name, last name, or email
-- Upcoming birthdays (next 7 days)
-- Rate limiting for `/users/me` endpoint
-- CORS support
-- Avatar upload (Cloudinary integration)
+- JWT authentication
+- Refresh token support
+- User roles: `user` / `admin`
+- Redis cache for current user
+- Password reset flow
+- Contacts CRUD
+- Unit and integration tests
+- Test coverage: **88%+**
+- Sphinx documentation
+- Docker Compose support
+- Swagger / OpenAPI descriptions
+- Basic application logging
 
----
+## Implemented requirements
 
-## Tech Stack
+### Mandatory requirements
 
-- FastAPI
-- SQLAlchemy
-- PostgreSQL
-- Docker & Docker Compose
-- Pydantic
-- JWT (python-jose)
-- Passlib (bcrypt)
-- SlowAPI (rate limiting)
-- Cloudinary (image hosting)
+- Sphinx documentation
+- Docstrings in core modules and functions
+- Unit tests
+- Integration tests
+- Test coverage above 75%
+- Redis cache for `get_current_user`
+- Password reset mechanism
+- Role-based access control
+- Admin-only default avatar update
+- Docker Compose for all services
+- Sensitive settings moved to `.env`
 
----
+### Additional improvements
 
-## Project Structure
+- Refresh token support
+- Improved Swagger UI descriptions
+- Logging for authentication and cache flow
+- Extra edge-case integration tests
+- Deploy-ready project structure and settings
 
+## Project structure
+
+- `app/main.py` — application entry point
+- `app/database.py` — database settings and session creation
+- `app/models.py` — SQLAlchemy models
+- `app/schemas.py` — Pydantic schemas
+- `app/auth.py` — password hashing and JWT helpers
+- `app/crud.py` — CRUD logic
+- `app/dependencies.py` — authentication and role dependencies
+- `app/redis_cache.py` — Redis cache helpers
+- `app/routes_auth.py` — authentication routes
+- `app/routes_contacts.py` — contacts routes
+- `app/routes_users.py` — user routes
+- `tests/` — unit and integration tests
+- `docs/` — Sphinx documentation
+
+## Security notes
+
+- Passwords are stored as hashes
+- JWT is used for authentication
+- Refresh token is implemented for access token renewal
+- Secrets are stored in `.env`
+- Role checks protect admin-only endpoints
+- Password reset is token-based
+- Redis cache falls back safely if Redis is unavailable
+
+## Main API endpoints
+
+### Auth
+- `POST /auth/signup`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/request_password_reset`
+- `POST /auth/reset_password/{token}`
+
+### Users
+- `GET /users/me`
+- `PATCH /users/default-avatar`
+
+### Contacts
+- `GET /contacts/`
+- `POST /contacts/`
+- `GET /contacts/search`
+- `GET /contacts/birthdays`
+- `GET /contacts/{id}`
+- `PUT /contacts/{id}`
+- `DELETE /contacts/{id}`
+
+### System
+- `GET /`
+
+## Demo flow
+
+1. Register a new user
+2. Login and receive `access_token` + `refresh_token`
+3. Create contacts
+4. View the current user with `/users/me`
+5. Request password reset
+6. Reset password using a reset token
+7. Refresh access token using `/auth/refresh`
+
+## Test results
+
+The project includes both unit and integration tests.
+
+Final test result:
+
+- **24 tests passed**
+- **88.11% coverage**
+
+Run tests with:
+
+```bash
+pytest
+````
+
+Coverage report:
+
+```bash
+pytest --cov=app --cov-report=term-missing
 ```
 
-app/
-├── main.py
-├── database.py
-├── models.py
-├── schemas.py
-├── auth.py
-├── crud.py
-├── dependencies.py
-├── email_utils.py
-├── cloudinary_service.py
-├── routes_auth.py
-├── routes_contacts.py
-└── routes_users.py
+## Documentation
 
+Sphinx HTML documentation is generated into:
+
+```text
+docs/build/html/index.html
 ```
 
----
+Build documentation:
 
-## Environment Variables
+### Linux / macOS
 
-Create a `.env` file based on `.env.example`.
-
-Example:
-
-```env
-POSTGRES_DB=contacts_db
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=mysecretpassword
-POSTGRES_HOST=db
-POSTGRES_PORT=5432
-
-SECRET_KEY=supersecretkey123
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-EMAIL_TOKEN_SECRET=email-secret-key
-APP_BASE_URL=http://localhost:8001
-
-SMTP_HOST=
-SMTP_PORT=587
-SMTP_USER=
-SMTP_PASSWORD=
-SMTP_FROM=
-
-CORS_ORIGINS=http://localhost:3000,http://localhost:8001
-
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
+```bash
+cd docs
+make html
 ```
 
----
+### Windows PowerShell
 
-## Run Project
+```powershell
+cd docs
+py -m sphinx -b html source build\html
+```
 
-Build and start services:
+## Local run
+
+### Run with Docker Compose
 
 ```bash
 docker compose up --build
 ```
 
-Open API documentation:
+Because some standard local ports were already occupied on the development machine, the project may be exposed with remapped ports, for example:
 
-```
-http://localhost:8001/docs
-```
+* application: `http://127.0.0.1:8001/docs`
+* PostgreSQL external port: `5433`
+* Redis external port: `6379`
 
----
+### Run directly with Uvicorn
 
-## Authentication Flow
-
-1. Register user → `POST /auth/signup`
-2. Confirm email via token link
-3. Login → `POST /auth/login`
-4. Use token in Swagger:
-
-```
-Bearer <access_token>
+```bash
+python -m uvicorn app.main:app --reload
 ```
 
----
+## Environment configuration
 
-## API Endpoints
+All sensitive settings are expected in `.env`.
 
-### Auth
+Example variables are provided in `.env.example`.
 
-- `POST /auth/signup`
-- `POST /auth/login`
-- `GET /auth/confirmed_email/{token}`
-- `POST /auth/request_email`
+Important variables include:
 
-### Users
+* `DATABASE_URL`
+* `SECRET_KEY`
+* `ALGORITHM`
+* `ACCESS_TOKEN_EXPIRE_MINUTES`
+* `RESET_TOKEN_EXPIRE_MINUTES`
+* `REDIS_HOST`
+* `REDIS_PORT`
+* `APP_BASE_URL`
+* `PORT`
+* `DEBUG`
 
-- `GET /users/me`
-- `PATCH /users/avatar`
+## About cloud deployment
 
-### Contacts
+Cloud deployment was **not completed in this submission**.
 
-- `POST /contacts/`
-- `GET /contacts/`
-- `GET /contacts/{contact_id}`
-- `PUT /contacts/{contact_id}`
-- `DELETE /contacts/{contact_id}`
-- `GET /contacts/search`
-- `GET /contacts/birthdays`
+Reason:
+the development was performed on a **work computer with ARM architecture**, and I decided not to finalize cloud deployment from this environment in order to avoid unstable build/runtime issues and environment-specific deployment problems during final submission preparation.
 
----
+At the same time, the project was prepared for deployment:
 
-## Email Verification
+* Dockerized application
+* environment-based configuration
+* refresh token support
+* production-style settings structure
+* deploy-ready README notes
 
-The application implements email verification using token-based confirmation.
-
-- After registration, a verification token is generated
-- A confirmation link is created and sent via email
-- If SMTP is not configured, the verification link is printed in application logs
-- User login is restricted until email is confirmed
-
----
-
-## Avatar Upload (Cloudinary)
-
-The application supports updating user avatars using Cloudinary.
-
-- Endpoint: `PATCH /users/avatar`
-- Image is uploaded to Cloudinary
-- Returned URL is stored in the database
-
-**Note:**
-Cloudinary integration requires the following environment variables:
-
-```
-CLOUDINARY_CLOUD_NAME
-CLOUDINARY_API_KEY
-CLOUDINARY_API_SECRET
-```
-
-If these variables are not configured, the avatar upload feature may not function correctly.
-
----
-
-## Security
-
-- Passwords are hashed using bcrypt
-- JWT tokens are used for authentication
-- Unauthorized access returns HTTP 401
-- Duplicate email registration returns HTTP 409
-- Only verified users can log in
-- Users can only manage their own contacts
-
----
-
-## Rate Limiting
-
-The `/users/me` endpoint is protected with rate limiting to prevent abuse.
-
----
-
-## CORS
-
-CORS is enabled and configurable via environment variables.
-
----
-
-## ARM Architecture Note
-
-This project was developed on a Windows ARM (ARM64) machine.
-
-Some Python dependencies (e.g., httptools) may not install correctly on ARM environments.
-
-To avoid compatibility issues, the application is designed to run inside Docker containers, where dependencies are installed in a Linux environment.
-
----
+So the application is **deployment-ready in structure**, but a public cloud link is intentionally not included in this submission.
 
 ## Conclusion
 
-This project demonstrates:
+This project fully implements the mandatory requirements of the final homework and also includes several additional improvements:
 
-- REST API development with FastAPI
-- Secure authentication and authorization
-- Database integration with PostgreSQL
-- Containerized deployment using Docker
-- Handling of real-world backend concerns (security, rate limiting, verification, environment configuration)
+* refresh token support
+* improved Swagger documentation
+* extra edge-case tests
+* logging
+* deploy-ready configuration
 
-## Verification and Access Control
-
-Only confirmed users can access protected user and contact endpoints.
-
-## Rate Limiting
-
-The `/users/me` endpoint is rate-limited.
-
-## Avatar Upload
-
-Avatar upload validates file type and requires Cloudinary environment variables.
+The result is a production-style FastAPI REST API with documentation, tests, caching, role-based access control, password reset flow, and containerized local execution.

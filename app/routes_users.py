@@ -1,42 +1,46 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+"""
+User-related routes.
+"""
+
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.cloudinary_service import upload_avatar
-from app.crud import update_user_avatar
+from app import schemas, crud
 from app.database import get_db
-from app.dependencies import get_current_confirmed_user
-from app.schemas import UserResponse
-
+from app.dependencies import get_current_user, get_current_admin_user
+from app.models import User
+from app.redis_cache import clear_user_cache
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
-def read_users_me(
-    request: Request,
-    current_user=Depends(get_current_confirmed_user),
-):
+@router.get(
+    "/me",
+    response_model=schemas.UserResponse,
+    summary="Get current user",
+    description="Return information about the currently authenticated user.",
+)
+def me(current_user: User = Depends(get_current_user)):
+    """
+    Return the currently authenticated user.
+    """
     return current_user
 
 
-@router.patch("/avatar", response_model=UserResponse, status_code=status.HTTP_200_OK)
-def update_avatar(
-    file: UploadFile = File(...),
+@router.patch(
+    "/default-avatar",
+    response_model=schemas.UserResponse,
+    summary="Update default avatar",
+    description="Allow only admin users to update their default avatar.",
+)
+def update_default_avatar(
+    body: schemas.AvatarUpdateRequest,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_confirmed_user),
+    admin_user: User = Depends(get_current_admin_user),
 ):
-    if not file.filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No file selected",
-        )
-
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File must be an image",
-        )
-
-    avatar_url = upload_avatar(file.file, f"user_{current_user.id}")
-    user = update_user_avatar(db, current_user, avatar_url)
-    return user
+    """
+    Update default avatar. Only admins are allowed.
+    """
+    updated_user = crud.update_default_avatar(db, admin_user, body.avatar_url)
+    clear_user_cache(updated_user.email)
+    return updated_user

@@ -1,109 +1,153 @@
-import logging
+"""
+Contact CRUD routes.
+"""
 
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.crud import (
-    create_contact,
-    delete_contact,
-    get_contact,
-    get_contacts,
-    get_upcoming_birthdays,
-    search_contacts,
-    update_contact,
-)
+from app import crud, schemas
 from app.database import get_db
-from app.dependencies import get_current_confirmed_user
-from app.schemas import ContactCreate, ContactResponse, ContactUpdate
-
-
-logger = logging.getLogger(__name__)
+from app.dependencies import get_current_user
+from app.models import User
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 
-@router.post("/", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
-def create_contact_route(
-    contact: ContactCreate,
+@router.post(
+    "/",
+    response_model=schemas.ContactResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create contact",
+    description="Create a new contact for the currently authenticated user.",
+)
+def create_contact(
+    body: schemas.ContactCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_confirmed_user),
+    current_user: User = Depends(get_current_user),
 ):
-    logger.info("User %s is creating a contact", current_user.email)
-    return create_contact(db, contact, current_user.id)
+    """
+    Create a new contact for current user.
+    """
+    return crud.create_contact(db, body, current_user.id)
 
 
-@router.get("/", response_model=list[ContactResponse], status_code=status.HTTP_200_OK)
-def get_contacts_route(
+@router.get(
+    "/",
+    response_model=List[schemas.ContactResponse],
+    summary="Get all contacts",
+    description="Return all contacts of the currently authenticated user with pagination support.",
+)
+def get_contacts(
     skip: int = 0,
-    limit: int = Query(default=10, ge=1, le=100),
+    limit: int = 100,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_confirmed_user),
+    current_user: User = Depends(get_current_user),
 ):
-    logger.info(
-        "User %s requested contacts list with skip=%s limit=%s",
-        current_user.email,
-        skip,
-        limit,
-    )
-    return get_contacts(db, current_user.id, skip, limit)
+    """
+    Return all contacts for current user.
+    """
+    return crud.get_contacts(db, current_user.id, skip, limit)
 
 
-@router.get("/birthdays", response_model=list[ContactResponse], status_code=status.HTTP_200_OK)
-def get_birthdays_route(
+@router.get(
+    "/search",
+    response_model=List[schemas.ContactResponse],
+    summary="Search contacts",
+    description="Search contacts by first name, last name, or email.",
+)
+def search_contacts(
+    query: str = Query(..., min_length=1),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_confirmed_user),
+    current_user: User = Depends(get_current_user),
 ):
-    logger.info("User %s requested upcoming birthdays", current_user.email)
-    return get_upcoming_birthdays(db, current_user.id)
+    """
+    Search contacts by query string.
+    """
+    return crud.search_contacts(db, current_user.id, query)
 
 
-@router.get("/search", response_model=list[ContactResponse], status_code=status.HTTP_200_OK)
-def search_contacts_route(
-    first_name: str | None = Query(default=None),
-    last_name: str | None = Query(default=None),
-    email: str | None = Query(default=None),
+@router.get(
+    "/birthdays",
+    response_model=List[schemas.ContactResponse],
+    summary="Get upcoming birthdays",
+    description="Return contacts whose birthdays are within the next 7 days.",
+)
+def upcoming_birthdays(
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_confirmed_user),
+    current_user: User = Depends(get_current_user),
 ):
-    logger.info("User %s is searching contacts", current_user.email)
-    return search_contacts(db, current_user.id, first_name, last_name, email)
+    """
+    Return contacts with upcoming birthdays.
+    """
+    return crud.get_upcoming_birthdays(db, current_user.id)
 
 
-@router.get("/{contact_id}", response_model=ContactResponse, status_code=status.HTTP_200_OK)
-def get_contact_route(
+@router.get(
+    "/{contact_id}",
+    response_model=schemas.ContactResponse,
+    summary="Get contact by id",
+    description="Return a single contact by its identifier.",
+)
+def get_contact(
     contact_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_confirmed_user),
+    current_user: User = Depends(get_current_user),
 ):
-    logger.info("User %s requested contact id=%s", current_user.email, contact_id)
-    contact = get_contact(db, contact_id, current_user.id)
+    """
+    Return a single contact by id.
+    """
+    contact = crud.get_contact(db, contact_id, current_user.id)
     if contact is None:
-        raise HTTPException(status_code=404, detail="Contact not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact not found",
+        )
     return contact
 
 
-@router.put("/{contact_id}", response_model=ContactResponse, status_code=status.HTTP_200_OK)
-def update_contact_route(
+@router.put(
+    "/{contact_id}",
+    response_model=schemas.ContactResponse,
+    summary="Update contact",
+    description="Update an existing contact owned by the currently authenticated user.",
+)
+def update_contact(
     contact_id: int,
-    contact: ContactUpdate,
+    body: schemas.ContactUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_confirmed_user),
+    current_user: User = Depends(get_current_user),
 ):
-    logger.info("User %s is updating contact id=%s", current_user.email, contact_id)
-    updated_contact = update_contact(db, contact_id, contact, current_user.id)
-    if updated_contact is None:
-        raise HTTPException(status_code=404, detail="Contact not found")
-    return updated_contact
+    """
+    Update an existing contact.
+    """
+    contact = crud.update_contact(db, contact_id, body, current_user.id)
+    if contact is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact not found",
+        )
+    return contact
 
 
-@router.delete("/{contact_id}", status_code=status.HTTP_200_OK)
-def delete_contact_route(
+@router.delete(
+    "/{contact_id}",
+    response_model=schemas.ContactResponse,
+    summary="Delete contact",
+    description="Delete a contact owned by the currently authenticated user.",
+)
+def delete_contact(
     contact_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_confirmed_user),
+    current_user: User = Depends(get_current_user),
 ):
-    logger.info("User %s is deleting contact id=%s", current_user.email, contact_id)
-    deleted_contact = delete_contact(db, contact_id, current_user.id)
-    if deleted_contact is None:
-        raise HTTPException(status_code=404, detail="Contact not found")
-    return {"message": "Contact deleted"}
+    """
+    Delete a contact.
+    """
+    contact = crud.remove_contact(db, contact_id, current_user.id)
+    if contact is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact not found",
+        )
+    return contact
